@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>功课收集提交与本地备份</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  body { font-family: system-ui, -apple-system, "PingFang SC","Microsoft YaHei", Arial; margin: 24px; }
+  h2 { margin-bottom: 8px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 980px; }
+  label { display:block; font-weight:600; margin: 8px 0 4px; }
+  input, select, textarea, button { font-size:16px; padding:8px; width:100%; box-sizing: border-box; }
+  textarea { resize: vertical; }
+  .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .msg { margin-top: 8px; white-space: pre-wrap; }
+  .ok { color: #0a7d33; }
+  .err { color: #b80000; }
+  table { border-collapse: collapse; margin-top: 16px; width: 100%; max-width: 100%; overflow: auto; display: block; }
+  th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; white-space: nowrap; }
+  .muted { color: #666; }
+</style>
+</head>
+<body>
+  <h2>功课收集提交与本地备份</h2>
+  <div class="muted">本页面可离线使用（localStorage）。点击“提交到 Notion/检查数据库”会调用你的无服务器接口。</div>
+
+  <div class="grid">
+    <div>
+      <label>姓名（标题，必填，Notion 标题列）</label>
+      <input id="title" placeholder="你的名字" required />
+    </div>
+
+    <div>
+      <label>提交时间（date）</label>
+      <input id="date" type="date" />
+    </div>
+
+    <div>
+      <label>九字禅（声）（number）</label>
+      <input id="chant9" type="number" min="0" max="999999" step="1" value="0" />
+    </div>
+
+    <div>
+      <label>拜忏文（遍）（number）</label>
+      <input id="repent" type="number" min="0" max="999999" step="1" value="0" />
+    </div>
+
+    <div>
+      <label>静禅（分钟）（number）</label>
+      <input id="zenStatic" type="number" min="0" max="999999" step="1" value="0" />
+    </div>
+
+    <div>
+      <label>动禅（分钟）（number）</label>
+      <input id="zenMove" type="number" min="0" max="999999" step="1" value="0" />
+    </div>
+
+    <div>
+      <label>备注（text）</label>
+      <textarea id="note" rows="3" placeholder="补充说明…"></textarea>
+    </div>
+  </div>
+
+  <h3>经名（6 列 number，各自 0～4）</h3>
+  <div class="grid">
+    <div>
+      <label>金刚经（0～4）</label>
+      <input id="jg" type="number" min="0" max="4" step="1" value="0" />
+    </div>
+    <div>
+      <label>阿弥陀经（0～4）</label>
+      <input id="amt" type="number" min="0" max="4" step="1" value="0" />
+    </div>
+    <div>
+      <label>普门品（0～4）</label>
+      <input id="pmp" type="number" min="0" max="4" step="1" value="0" />
+    </div>
+    <div>
+      <label>普贤行愿品（0～4）</label>
+      <input id="px" type="number" min="0" max="4" step="1" value="0" />
+    </div>
+    <div>
+      <label>地藏菩萨本愿经（0～4）</label>
+      <input id="dz" type="number" min="0" max="4" step="1" value="0" />
+    </div>
+    <div>
+      <label>心经（0～4）</label>
+      <input id="xj" type="number" min="0" max="4" step="1" value="0" />
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="saveLocal">保存到本地</button>
+    <button id="submitNotion">提交到 Notion</button>
+    <button id="exportCSV">导出 CSV</button>
+    <button id="clearLocal">清空本地记录</button>
+    <button id="checkDb">检查数据库</button>
+  </div>
+  <div id="msg" class="msg"></div>
+
+  <h3>本地记录</h3>
+  <div class="muted">数据保存在本机浏览器的 localStorage，仅自己可见。</div>
+  <div style="overflow:auto">
+    <table id="table">
+      <thead>
+        <tr>
+          <th>姓名</th>
+          <th>提交时间</th>
+          <th>九字禅（声）</th>
+          <th>拜忏文（遍）</th>
+          <th>静禅（分钟）</th>
+          <th>动禅（分钟）</th>
+          <th>金刚经</th>
+          <th>阿弥陀经</th>
+          <th>普门品</th>
+          <th>普贤行愿品</th>
+          <th>地藏菩萨本愿经</th>
+          <th>心经</th>
+          <th>备注</th>
+          <th>Notion 页面ID</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+<script>
+const API_BASE = "/api"; // Vercel 默认：/api/xxx。若部署到自定义域名，请改为完整基地址。
+
+const KEY = "gongke_records_v2_numbers6";
+
+const msg = document.getElementById("msg");
+function setMsg(text, type="") {
+  msg.className = "msg " + (type || "");
+  msg.textContent = text;
+}
+
+function readLocal() {
+  try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; }
+}
+function writeLocal(arr) { localStorage.setItem(KEY, JSON.stringify(arr)); }
+
+function renderTable() {
+  const tbody = document.getElementById("tbody");
+  tbody.innerHTML = "";
+  for (const r of readLocal()) {
+    const row = [
+      r.title || "", r.date || "", r.name || "",
+      r.chant9 ?? 0, r.repent ?? 0, r.zenStatic ?? 0, r.zenMove ?? 0,
+      r.jg ?? 0, r.amt ?? 0, r.pmp ?? 0, r.px ?? 0, r.dz ?? 0, r.xj ?? 0,
+      r.note || "", r.notionPageId || ""
+    ];
+    const tr = document.createElement("tr");
+    for (const c of row) {
+      const td = document.createElement("td");
+      td.textContent = String(c);
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+}
+
+function collectForm() {
+  const clamp = (id, min, max) => {
+    const v = Number(document.getElementById(id).value);
+    if (!Number.isFinite(v)) return min;
+    return Math.max(min, Math.min(max, v));
+  };
+  return {
+    title: document.getElementById("title").value.trim(),
+    date: document.getElementById("date").value || null,
+    name: document.getElementById("name").value.trim(),
+    chant9: clamp("chant9", 0, 999999),
+    repent: clamp("repent", 0, 999999),
+    zenStatic: clamp("zenStatic", 0, 999999),
+    zenMove: clamp("zenMove", 0, 999999),
+    jg: clamp("jg", 0, 4),
+    amt: clamp("amt", 0, 4),
+    pmp: clamp("pmp", 0, 4),
+    px: clamp("px", 0, 4),
+    dz: clamp("dz", 0, 4),
+    xj: clamp("xj", 0, 4),
+    note: document.getElementById("note").value.trim()
+  };
+}
+
+document.getElementById("saveLocal").addEventListener("click", () => {
+  const row = collectForm();
+  if (!row.title) { setMsg("请填写“姓名”（标题）", "err"); return; }
+  const data = readLocal();
+  data.push({ ...row, notionPageId: "" });
+  writeLocal(data); renderTable();
+  setMsg("已保存到本地。", "ok");
+});
+
+document.getElementById("submitNotion").addEventListener("click", async () => {
+  const row = collectForm();
+  if (!row.title) { setMsg("请填写“姓名”（标题）", "err"); return; }
+  setMsg("提交中…");
+
+  const data = readLocal();
+  const idx = data.length;
+  data.push({ ...row, notionPageId: "" });
+  writeLocal(data); renderTable();
+
+  try {
+    const resp = await fetch(API_BASE + "/submit", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(row)
+    });
+    const r = await resp.json();
+    if (!resp.ok) { setMsg("提交失败：" + (r.error || resp.statusText), "err"); return; }
+    const latest = readLocal();
+    latest[idx].notionPageId = r.pageId || "";
+    writeLocal(latest); renderTable();
+    setMsg("提交成功！", "ok");
+  } catch (e) {
+    setMsg("网络或服务器错误：" + String(e), "err");
+  }
+});
+
+document.getElementById("exportCSV").addEventListener("click", () => {
+  const data = readLocal();
+  if (!data.length) { setMsg("本地暂无记录可导出。", "err"); return; }
+  const headers = [
+    "姓名","提交时间","九字禅（声）","拜忏文（遍）","静禅（分钟）","动禅（分钟）",
+    "金刚经","阿弥陀经","普门品","普贤行愿品","地藏菩萨本愿经","心经","备注","Notion页面ID"
+  ];
+  const lines = [headers.join(",")];
+  for (const r of data) {
+    const row = [
+      r.title || "", r.date || "", r.name || "",
+      r.chant9 ?? 0, r.repent ?? 0, r.zenStatic ?? 0, r.zenMove ?? 0,
+      r.jg ?? 0, r.amt ?? 0, r.pmp ?? 0, r.px ?? 0, r.dz ?? 0, r.xj ?? 0,
+      (r.note || "").replace(/\n/g, " "), r.notionPageId || ""
+    ].map(v => {
+      const s = String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
+    });
+    lines.push(row.join(","));
+  }
+  const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url;
+  a.download = `功课记录导出_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  setMsg("CSV 导出完成。", "ok");
+});
+
+document.getElementById("clearLocal").addEventListener("click", () => {
+  if (confirm("确定清空本地记录？此操作不可撤销。")) {
+    writeLocal([]); renderTable(); setMsg("已清空本地记录。", "ok");
+  }
+});
+
+document.getElementById("checkDb").addEventListener("click", async () => {
+  try {
+    const resp = await fetch(API_BASE + "/health");
+    const data = await resp.json();
+    if (!resp.ok) {
+      setMsg("校验失败：" + (data.error || resp.statusText), "err"); return;
+    }
+    if (data.ok) {
+      setMsg("数据库校验通过！", "ok");
+    } else {
+      const failed = (data.checks || []).filter(c => !c.ok);
+      const lines = failed.map(f => `• ${f.field}: 期望 ${f.expected}，实际 ${f.actual ?? "缺失"}。建议：${f.advice}`).join("\n");
+      setMsg("数据库存在需要修正的列：\n" + lines, "err");
+    }
+  } catch (e) {
+    setMsg("校验请求失败：" + String(e), "err");
+  }
+});
+
+(function initDateToday(){
+  const today = new Date();
+  const y = today.getFullYear();
+  const m = String(today.getMonth()+1).padStart(2,"0");
+  const d = String(today.getDate()).padStart(2,"0");
+  document.getElementById("date").value = `${y}-${m}-${d}`;
+})();
+renderTable();
+</script>
+</body>
+</html>
