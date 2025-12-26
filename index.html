@@ -169,7 +169,6 @@ function collectForm() {
   return {
     title: document.getElementById("title").value.trim(),
     date: document.getElementById("date").value || null,
-    name: document.getElementById("name").value.trim(),
     chant9: clamp("chant9", 0, 999999),
     repent: clamp("repent", 0, 999999),
     zenStatic: clamp("zenStatic", 0, 999999),
@@ -285,3 +284,4 @@ renderTable();
 </body>
 
 </html>
+
