@@ -145,7 +145,7 @@ function renderTable() {
   tbody.innerHTML = "";
   for (const r of readLocal()) {
     const row = [
-      r.title || "", r.date || "", r.name || "",
+      r.title || "", r.date || "", 
       r.chant9 ?? 0, r.repent ?? 0, r.zenStatic ?? 0, r.zenMove ?? 0,
       r.jg ?? 0, r.amt ?? 0, r.pmp ?? 0, r.px ?? 0, r.dz ?? 0, r.xj ?? 0,
       r.note || "", r.notionPageId || ""
@@ -229,7 +229,7 @@ document.getElementById("exportCSV").addEventListener("click", () => {
   const lines = [headers.join(",")];
   for (const r of data) {
     const row = [
-      r.title || "", r.date || "", r.name || "",
+      r.title || "", r.date || "", 
       r.chant9 ?? 0, r.repent ?? 0, r.zenStatic ?? 0, r.zenMove ?? 0,
       r.jg ?? 0, r.amt ?? 0, r.pmp ?? 0, r.px ?? 0, r.dz ?? 0, r.xj ?? 0,
       (r.note || "").replace(/\n/g, " "), r.notionPageId || ""
@@ -283,4 +283,5 @@ document.getElementById("checkDb").addEventListener("click", async () => {
 renderTable();
 </script>
 </body>
+
 </html>
