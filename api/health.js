@@ -1,6 +1,6 @@
 import { Client } from "@notionhq/client";
 
-const notion = new Client({ auth: process.env.NOTION_TOKEN });
+const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const DATABASE_ID = process.env.NOTION_DATABASE_ID;
 
 function cors(res) {
@@ -87,3 +87,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: msg });
   }
 }
+
