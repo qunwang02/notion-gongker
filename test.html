@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <h2>测试提交</h2>
+  <button onclick="testSubmit()">测试提交</button>
+  <div id="result"></div>
+  
+  <script>
+  async function testSubmit() {
+    const testData = {
+      title: "测试用户",
+      date: "2024-12-26",
+      chant9: 108,
+      repent: 3,
+      zenStatic: 30,
+      zenMove: 20,
+      jg: 1,
+      amt: 1,
+      pmp: 0,
+      px: 0,
+      dz: 0,
+      xj: 1,
+      note: "测试提交"
+    };
+    
+    try {
+      const response = await fetch('/api/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(testData)
+      });
+      
+      const result = document.getElementById('result');
+      result.innerHTML = `
+        <p>状态码: ${response.status}</p>
+        <p>响应: ${await response.text()}</p>
+      `;
+    } catch (error) {
+      document.getElementById('result').innerHTML = `错误: ${error}`;
+    }
+  }
+  </script>
+</body>
+</html>
